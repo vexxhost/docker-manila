@@ -16,12 +16,12 @@ jobs:
       id-token: write
       packages: write
     steps:
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@2024.2
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: openstack/manila
           ref: 338bcb77f8d36c422e616e0349b7bbf297c63c3a
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@2024.2
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@main
         with:
           image-name: manila
           build-contexts: manila=openstack/manila
