@@ -16,12 +16,12 @@ jobs:
       id-token: write
       packages: write
     steps:
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@stable/zed
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: openstack/manila
           ref: fab08ff7b282a72a4fc585688720c2a96451aac9
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@stable/zed
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@main
         with:
           image-name: manila
           base-image-tag: zed
