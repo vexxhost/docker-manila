@@ -1,0 +1,28 @@
+name: build
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - stable/**
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
+        with:
+          repository: openstack/manila
+          ref: da85a864b83ef11a068c08f64e1955a45953dc03
+
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@main
+        with:
+          image-name: manila
+          build-contexts: manila=openstack/manila
+          push: ${{ github.event_name != 'pull_request' }}
