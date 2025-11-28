@@ -18,7 +18,7 @@ RUN \
 RUN <<EOF bash -xe
 apt-get update -qq
 apt-get install -qq -y --no-install-recommends \
-    iproute2 openvswitch-switch python3-ceph-argparse python3-rados
+    iproute2 openvswitch-switch
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 EOF
