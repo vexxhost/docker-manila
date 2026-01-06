@@ -20,7 +20,7 @@ jobs:
       - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: openstack/manila
-          ref: cef2bd8af9ffec61b3869b03ffb52a6390d19b5f # master
+          ref: 5122362344c8c51c1de117ae275109fc27e1dc07 # master
 
       - uses: vexxhost/docker-atmosphere/.github/actions/build-image@main
         with:
