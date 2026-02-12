@@ -1,0 +1,193 @@
+From 688ebca877ce17ba549900cecee06b6a053f7883 Mon Sep 17 00:00:00 2001
+From: Pavlo Shchelokovskyy <shchelokovskyy@gmail.com>
+Date: Fri, 10 Jan 2025 12:19:52 +0000
+Subject: [PATCH] Actually try to log in via SSH to validate server
+
+socket on SSH port being open may not be enough, as the cloud init
+might've not yet setup the user keys by this point.
+
+Instead, actually try to connect via SSH with password/key
+to validate everything is up and ready to accept commands.
+
+Change-Id: Icd12ba54cadfd0b85a1768054a4f7b2537ed07ac
+Closes-Bug: #1748139
+---
+
+diff --git a/manila/share/drivers/service_instance.py b/manila/share/drivers/service_instance.py
+index a28a512..4b00f61 100644
+--- a/manila/share/drivers/service_instance.py
++++ b/manila/share/drivers/service_instance.py
+@@ -18,7 +18,6 @@
+ 
+ import abc
+ import os
+-import socket
+ import time
+ 
+ import netaddr
+@@ -36,6 +35,7 @@
+ from manila import image
+ from manila.network.linux import ip_lib
+ from manila.network.neutron import api as neutron
++from manila import ssh_utils
+ from manila import utils
+ 
+ LOG = log.getLogger(__name__)
+@@ -663,27 +663,36 @@
+         """
+         return {}
+ 
+-    def _check_server_availability(self, instance_details):
++    def _check_server_availability(self, instance_details, interval=5):
+         t = time.time()
++        ssh_pool = ssh_utils.SSHPool(instance_details['ip'],
++                                     22,
++                                     interval,
++                                     instance_details['username'],
++                                     instance_details.get('password'),
++                                     instance_details.get('pk_path'),
++                                     max_size=1)
+         while time.time() - t < self.max_time_to_build_instance:
+             LOG.debug('Checking server availability.')
+-            if not self._test_server_connection(instance_details):
+-                time.sleep(5)
++            if not self._test_server_connection(instance_details, ssh_pool):
++                time.sleep(interval)
+             else:
+                 return True
+         return False
+ 
+-    def _test_server_connection(self, server):
++    def _test_server_connection(self, server, ssh_pool):
++        conn = None
+         try:
+-            socket.socket().connect((server['ip'], 22))
+-            LOG.debug('Server %s is available via SSH.',
+-                      server['ip'])
++            conn = ssh_pool.create(quiet=True)
+             return True
+-        except socket.error as e:
++        except Exception as e:
+             LOG.debug(e)
+-            LOG.debug("Server %s is not available via SSH. Waiting...",
+-                      server['ip'])
++            LOG.debug("Could not login to server %s over SSH. Waiting...",
++                      server["ip"])
+             return False
++        finally:
++            if conn:
++                conn.close()
+ 
+     def delete_service_instance(self, context, server_details):
+         """Removes share infrastructure.
+diff --git a/manila/ssh_utils.py b/manila/ssh_utils.py
+index 1b2ac74..b013b68 100644
+--- a/manila/ssh_utils.py
++++ b/manila/ssh_utils.py
+@@ -66,7 +66,7 @@
+         self.path_to_private_key = privatekey
+         super(SSHPool, self).__init__(*args, **kwargs)
+ 
+-    def create(self):  # pylint: disable=method-hidden
++    def create(self, quiet=False):  # pylint: disable=method-hidden
+         ssh = paramiko.SSHClient()
+         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+         look_for_keys = True
+@@ -99,7 +99,10 @@
+         except Exception as e:
+             msg = _("Check whether private key or password are correctly "
+                     "set. Error connecting via ssh: %s") % e
+-            LOG.error(msg)
++            if quiet:
++                LOG.debug(msg)
++            else:
++                LOG.error(msg)
+             raise exception.SSHException(msg)
+ 
+     def get(self):
+diff --git a/manila/tests/share/drivers/test_service_instance.py b/manila/tests/share/drivers/test_service_instance.py
+index 69b4616..1d40833 100644
+--- a/manila/tests/share/drivers/test_service_instance.py
++++ b/manila/tests/share/drivers/test_service_instance.py
+@@ -278,8 +278,11 @@
+                 "service_instance_name_template") % fake_server_id, result)
+ 
+     def test__check_server_availability_available_from_start(self):
+-        fake_server = dict(id='fake_server', ip='127.0.0.1')
+-        self.mock_object(service_instance.socket.socket, 'connect')
++        fake_server = dict(
++            id='fake_server', ip='127.0.0.1',
++            username="manila", password="manila"
++        )
++        self.mock_object(service_instance.ssh_utils.SSHPool, 'create')
+         self.mock_object(service_instance.time, 'sleep')
+         self.mock_object(service_instance.time, 'time',
+                          mock.Mock(return_value=0))
+@@ -287,21 +290,24 @@
+         result = self._manager._check_server_availability(fake_server)
+ 
+         self.assertTrue(result)
+-        service_instance.socket.socket.connect.assert_called_once_with(
+-            (fake_server['ip'], 22))
++        service_instance.ssh_utils.SSHPool.create.assert_called_once_with(
++            quiet=True)
+         service_instance.time.time.assert_has_calls([
+             mock.call(), mock.call()])
+         service_instance.time.time.assert_has_calls([])
+ 
+     @ddt.data(True, False)
+     def test__check_server_availability_with_recall(self, is_ok):
+-        fake_server = dict(id='fake_server', ip='fake_ip_address')
++        fake_server = dict(
++            id='fake_server', ip='127.0.0.1',
++            username="manila", password="manila"
++        )
+ 
+         self.fake_time = 0
+ 
+-        def fake_connect(addr):
++        def fake_create(quiet=False):
+             if not (is_ok and self.fake_time > 1):
+-                raise service_instance.socket.error
++                raise exception.SSHException
+ 
+         def fake_time():
+             return self.fake_time
+@@ -311,8 +317,8 @@
+ 
+         self.mock_object(service_instance.time, 'sleep',
+                          mock.Mock(side_effect=fake_sleep))
+-        self.mock_object(service_instance.socket.socket, 'connect',
+-                         mock.Mock(side_effect=fake_connect))
++        self.mock_object(service_instance.ssh_utils.SSHPool, 'create',
++                         mock.Mock(side_effect=fake_create))
+         self.mock_object(service_instance.time, 'time',
+                          mock.Mock(side_effect=fake_time))
+         self._manager.max_time_to_build_instance = 6
+@@ -323,9 +329,8 @@
+             self.assertTrue(result)
+         else:
+             self.assertFalse(result)
+-        service_instance.socket.socket.connect.assert_has_calls([
+-            mock.call((fake_server['ip'], 22)),
+-            mock.call((fake_server['ip'], 22))])
++        service_instance.ssh_utils.SSHPool.create.assert_has_calls([
++            mock.call(quiet=True), mock.call(quiet=True)])
+         service_instance.time.time.assert_has_calls([
+             mock.call(), mock.call(), mock.call()])
+         service_instance.time.time.assert_has_calls([mock.call()])
+diff --git a/releasenotes/notes/bug-1748139-generic-dont-check-socket-login-e2dd1dbc42ae281a.yaml b/releasenotes/notes/bug-1748139-generic-dont-check-socket-login-e2dd1dbc42ae281a.yaml
+new file mode 100644
+index 0000000..19e86e8
+--- /dev/null
++++ b/releasenotes/notes/bug-1748139-generic-dont-check-socket-login-e2dd1dbc42ae281a.yaml
+@@ -0,0 +1,9 @@
++---
++fixes:
++  - |
++    The service instance module, used by some drivers supporting
++    `driver_handles_share_servers=True` mode, now checks for login
++    instead of polling the SSH port for connectivity. This is expected
++    to improve robustness of share creation operations that need a new
++    share server. See `bug 1748139
++    <https://launchpad.net/bugs/1748139>`_ for more details.

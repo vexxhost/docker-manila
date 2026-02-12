@@ -1,0 +1,27 @@
+From efe16a04f7745487eda1426139594bc55c7674ea Mon Sep 17 00:00:00 2001
+From: Pavlo Shchelokovskyy <shchelokovskyy@gmail.com>
+Date: Thu, 12 Dec 2024 17:05:07 +0000
+Subject: [PATCH] Support nova api 2.47 and newer
+
+this api version changed the format of instance flavor,
+flavor ID is no longer returned for server flavor,
+instead, the copy of original flavor data and 'original_name'
+are presented.
+
+Closes-Bug: #2091654
+Change-Id: I386f927c9cee16721adac8f972648cb395f2f147
+---
+
+diff --git a/manila/compute/nova.py b/manila/compute/nova.py
+index 1e1fd3b..ceb72d7 100644
+--- a/manila/compute/nova.py
++++ b/manila/compute/nova.py
+@@ -75,7 +75,7 @@
+     d = {}
+     d['id'] = server.id
+     d['status'] = server.status
+-    d['flavor'] = server.flavor['id']
++    d['flavor'] = server.flavor.get('id') or server.flavor['original_name']
+     d['name'] = server.name
+     d['image'] = server.image['id']
+     d['created'] = server.created
