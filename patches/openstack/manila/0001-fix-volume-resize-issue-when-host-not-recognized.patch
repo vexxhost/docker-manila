@@ -1,0 +1,66 @@
+From fcd3ddb058e67a453bb9dd47afecedca313f4782 Mon Sep 17 00:00:00 2001
+From: Yaguang Tang <heut2008@gmail.com>
+Date: Wed, 12 Mar 2025 14:43:23 +0800
+Subject: [PATCH] fix volume resize issue when host not recognized
+
+Closes-Bug: #2101015
+
+Change-Id: I3f9d60509ab01bcc4c808341dda8ea6c46f04738
+(cherry picked from commit 0ac0e43e0e7afbd1d9be95e92c06a34d26892029)
+(cherry picked from commit 502f1c8d5b9e8dee1bae53158c98ccb3b0c4a7ae)
+(cherry picked from commit ce9e7e4c898a5654d8c6fe5523e74c842f2828a1)
+(cherry picked from commit 82428a03db414cddd9b7c89433f73e10034359de)
+---
+
+diff --git a/manila/share/drivers/helpers.py b/manila/share/drivers/helpers.py
+index 12e0de8..9d68653 100644
+--- a/manila/share/drivers/helpers.py
++++ b/manila/share/drivers/helpers.py
+@@ -339,6 +339,8 @@
+             items = line.split(' ')
+             if local_path == items[0]:
+                 entries.append(items[1])
++        #  exportfs may print"<world>" instead of "*" for host
++        entries = ["*" if item == "<world>" else item for item in entries]
+         return entries
+ 
+     def _sync_nfs_temp_and_perm_files(self, server):
+diff --git a/manila/tests/share/drivers/test_helpers.py b/manila/tests/share/drivers/test_helpers.py
+index 072c31e..2f29c44 100644
+--- a/manila/tests/share/drivers/test_helpers.py
++++ b/manila/tests/share/drivers/test_helpers.py
+@@ -256,11 +256,12 @@
+     def test_get_host_list(self):
+         fake_exportfs = ('/shares/share-1\n\t\t20.0.0.3\n'
+                          '/shares/share-1\n\t\t20.0.0.6\n'
++                         '/shares/share-1\n\t\t<world>\n'
+                          '/shares/share-2\n\t\t10.0.0.2\n'
+                          '/shares/share-2\n\t\t10.0.0.5\n'
+                          '/shares/share-3\n\t\t30.0.0.4\n'
+                          '/shares/share-3\n\t\t30.0.0.7\n')
+-        expected = ['20.0.0.3', '20.0.0.6']
++        expected = ['20.0.0.3', '20.0.0.6', '*']
+         result = self._helper.get_host_list(fake_exportfs, '/shares/share-1')
+         self.assertEqual(expected, result)
+ 
+@@ -408,7 +409,7 @@
+                            '"{}"'.format(':'.join(['1.1.1.16', local_path]))]),
+                 mock.call(self.server,
+                           ['sudo', 'exportfs', '-u',
+-                           '"{}"'.format(':'.join(['<world>', local_path]))]),
++                           '"{}"'.format(':'.join(['*', local_path]))]),
+             ])
+ 
+         self._helper._sync_nfs_temp_and_perm_files.assert_called_once_with(
+diff --git a/releasenotes/notes/fix-generic-driver-resize-0fde9c8674db5951.yaml b/releasenotes/notes/fix-generic-driver-resize-0fde9c8674db5951.yaml
+new file mode 100644
+index 0000000..bc5b078
+--- /dev/null
++++ b/releasenotes/notes/fix-generic-driver-resize-0fde9c8674db5951.yaml
+@@ -0,0 +1,6 @@
++---
++fixes:
++  - |
++    For generic driver, when resize a share it may failed due to exportfs
++    can't recognize "<world>" as part of the share path. This issue has been
++    fixed by replacing "<world>" to "*".
