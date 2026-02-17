@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Atmosphere-Rebuild-Time: 2024-06-25T22:49:25Z
 
-FROM ghcr.io/vexxhost/openstack-venv-builder:main@sha256:039b4577ee3b0cc26d0205e4705400dd6158aa8b1f46e473e2f856566d23cec3 AS build
+FROM ghcr.io/vexxhost/openstack-venv-builder:main@sha256:93b87e1879fafde51ec15532aa2a6bafa9ea2b080546d2d69ed57866761e423a AS build
 RUN --mount=type=bind,from=manila,source=/,target=/src/manila,readwrite <<EOF bash -xe
 uv pip install \
     --constraint /upper-constraints.txt \
