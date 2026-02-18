@@ -4,6 +4,7 @@
 
 FROM ghcr.io/vexxhost/openstack-venv-builder:zed@sha256:31728b9b5a110df00c2b0fe8d859abb22989b848f8246c37aa6ee1b4995aa486 AS build
 RUN --mount=type=bind,from=manila,source=/,target=/src/manila,readwrite <<EOF bash -xe
+uv pip install "setuptools<81"
 uv pip install \
     --constraint /upper-constraints.txt \
         /src/manila
