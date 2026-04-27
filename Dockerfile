@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Atmosphere-Rebuild-Time: 2024-06-25T22:49:25Z
 
-FROM ghcr.io/vexxhost/openstack-venv-builder:main@sha256:6780e1ad7c7a851241e8e58526fb65b01921c4a9d98a2c1f63a9ef0594785ff5 AS build
+FROM ghcr.io/vexxhost/openstack-venv-builder:main@sha256:0042cbb10509c801ad2da747bcecb4c72a4ac37e644e62d705a0479d9cc4aee7 AS build
 RUN --mount=type=bind,from=manila,source=/,target=/src/manila,readwrite <<EOF bash -xe
 uv pip install \
     --constraint /upper-constraints.txt \
         /src/manila
 EOF
 
-FROM ghcr.io/vexxhost/python-base:main@sha256:95dce35dcbda1eaaa303ab47d76869728de278d64cbbdebd42b8de2330347751
+FROM ghcr.io/vexxhost/python-base:main@sha256:85af423d8c38797587df5b38aed0490ee6a22951c6d5fc6fbafca7d1ec33c693
 RUN \
     groupadd -g 42424 manila && \
     useradd -u 42424 -g 42424 -M -d /var/lib/manila -s /usr/sbin/nologin -c "Manila User" manila && \
