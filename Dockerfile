@@ -9,7 +9,7 @@ uv pip install \
         /src/manila
 EOF
 
-FROM ghcr.io/vexxhost/python-base:2024.1@sha256:611e152c1125195bfd3afc33fe18f5ae0f56beaa53efc6ed8258a09be7503cd0
+FROM ghcr.io/vexxhost/python-base:2024.1@sha256:bc3d81f16ba1461788bfe53cd33d0e26bf18b0dc62de5b3576d3fcedef2644dd
 RUN \
     groupadd -g 42424 manila && \
     useradd -u 42424 -g 42424 -M -d /var/lib/manila -s /usr/sbin/nologin -c "Manila User" manila && \
