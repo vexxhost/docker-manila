@@ -25,12 +25,12 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@2bed598442494c60f1f9ae004626473f7c400bf7 # main
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@d763fd8920390074628431db771a56ab4f7aa8e2 # main
         with:
           repository: openstack/manila
           ref: bb5a7f4e182c96d9fccbea7cd53f1ddfa6ce19a7 # stable/2026.1
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@2bed598442494c60f1f9ae004626473f7c400bf7 # main
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@d763fd8920390074628431db771a56ab4f7aa8e2 # main
         with:
           image-name: manila
           build-contexts: manila=openstack/manila
