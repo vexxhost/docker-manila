@@ -17,12 +17,12 @@ jobs:
       packages: write
       pull-requests: write
     steps:
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@15f30aa3f1fff75915cf230d19e00a54324d6ec7 # main
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@c2a2333f668bfbf131bd2a7aa8c387be80f0ea85 # main
         with:
           repository: openstack/manila
           ref: be19a3a1c716214f7a2557ac4d4d5d9719ad123f # stable/2024.1
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@15f30aa3f1fff75915cf230d19e00a54324d6ec7 # main
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@c2a2333f668bfbf131bd2a7aa8c387be80f0ea85 # main
         with:
           image-name: manila
           build-contexts: manila=openstack/manila
